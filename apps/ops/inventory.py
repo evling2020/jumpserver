@@ -15,8 +15,6 @@ logger = get_logger(__file__)
 
 
 class JMSBaseInventory(BaseInventory):
-    windows_ssh_default_shell = settings.WINDOWS_SSH_DEFAULT_SHELL
-
     def convert_to_ansible(self, asset, run_as_admin=False):
         info = {
             'id': asset.id,
@@ -29,17 +27,11 @@ class JMSBaseInventory(BaseInventory):
         if asset.domain and asset.domain.has_gateway():
             info["vars"].update(self.make_proxy_command(asset))
         if run_as_admin:
-            info.update(asset.get_auth_info())
-            if asset.is_unixlike():
-                info["become"] = {
-                    "method": 'sudo',
-                    "user": 'root',
-                    "pass": ''
-                }
+            info.update(asset.get_auth_info(with_become=True))
         if asset.is_windows():
             info["vars"].update({
                 "ansible_connection": "ssh",
-                "ansible_shell_type": self.windows_ssh_default_shell,
+                "ansible_shell_type": settings.WINDOWS_SSH_DEFAULT_SHELL,
             })
         for label in asset.labels.all():
             info["vars"].update({

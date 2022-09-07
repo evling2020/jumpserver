@@ -33,7 +33,7 @@ __all__ = [
 
 class UserViewSet(CommonApiMixin, UserQuerysetMixin, SuggestionMixin, BulkModelViewSet):
     filterset_class = UserFilter
-    search_fields = ('username', 'email', 'name', 'id', 'source', 'role')
+    search_fields = ('username', 'email', 'name')
     serializer_classes = {
         'default': UserSerializer,
         'suggestion': MiniUserSerializer,
@@ -107,6 +107,9 @@ class UserViewSet(CommonApiMixin, UserQuerysetMixin, SuggestionMixin, BulkModelV
         for user in users:
             self.check_object_permissions(self.request, user)
         return super().perform_bulk_update(serializer)
+
+    def allow_bulk_destroy(self, qs, filtered):
+        return filtered.count() < qs.count()
 
     def perform_bulk_destroy(self, objects):
         for obj in objects:

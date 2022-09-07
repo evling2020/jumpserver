@@ -22,10 +22,10 @@ exclude_permissions = (
     ('common', 'setting', '*', '*'),
 
     ('authentication', 'privatetoken', '*', '*'),
-    ('authentication', 'accesskey', 'change,delete', 'accesskey'),
     ('authentication', 'connectiontoken', 'change,delete', 'connectiontoken'),
     ('authentication', 'ssotoken', '*', '*'),
     ('authentication', 'superconnectiontoken', 'change,delete', 'superconnectiontoken'),
+    ('authentication', 'temptoken', 'delete', 'temptoken'),
     ('users', 'userpasswordhistory', '*', '*'),
     ('applications', 'applicationuser', '*', '*'),
     ('applications', 'historicalaccount', '*', '*'),
@@ -40,6 +40,10 @@ exclude_permissions = (
     ('assets', 'gathereduser', 'add,delete,change', 'gathereduser'),
     ('assets', 'accountbackupplanexecution', 'delete,change', 'accountbackupplanexecution'),
     ('assets', 'authbook', 'change', 'authbook'),
+    # TODO 暂时去掉历史账号的权限
+    ('assets', 'authbook', '*', 'assethistoryaccount'),
+    ('assets', 'authbook', '*', 'assethistoryaccountsecret'),
+
     ('perms', 'userassetgrantedtreenoderelation', '*', '*'),
     ('perms', 'usergrantedmappingnode', '*', '*'),
     ('perms', 'permnode', '*', '*'),
@@ -49,6 +53,8 @@ exclude_permissions = (
     ('rbac', 'contenttype', '*', '*'),
     ('rbac', 'permission', 'add,delete,change', 'permission'),
     ('rbac', 'rolebinding', '*', '*'),
+    ('rbac', 'systemrolebinding', 'change', 'systemrolebinding'),
+    ('rbac', 'orgrolebinding', 'change', 'orgrolebinding'),
     ('rbac', 'role', '*', '*'),
     ('ops', 'adhoc', 'delete,change', '*'),
     ('ops', 'adhocexecution', 'add,delete,change', '*'),
@@ -67,6 +73,11 @@ exclude_permissions = (
     ('tickets', 'ticket', 'add,delete,change', 'ticket'),
     ('tickets', 'ticketstep', '*', '*'),
     ('tickets', 'approvalrule', '*', '*'),
+    ('tickets', 'applyloginticket', '*', '*'),
+    ('tickets', 'applyloginassetticket', '*', '*'),
+    ('tickets', 'applycommandticket', '*', '*'),
+    ('tickets', 'applyassetticket', '*', '*'),
+    ('tickets', 'applyapplicationticket', '*', '*'),
     ('tickets', 'superticket', 'delete', 'superticket'),
     ('tickets', 'ticketsession', 'view,delete', 'ticketsession'),
     ('xpack', 'interface', '*', '*'),
@@ -89,7 +100,7 @@ exclude_permissions = (
 
 
 only_system_permissions = (
-    ('assets', 'platform', '*', '*'),
+    ('assets', 'platform', 'add,change,delete', 'platform'),
     ('users', 'user', 'delete', 'user'),
     ('rbac', 'role', 'delete,add,change', 'role'),
     ('rbac', 'systemrole', '*', '*'),
@@ -99,13 +110,18 @@ only_system_permissions = (
     ('orgs', 'organization', '*', '*'),
     ('xpack', 'license', '*', '*'),
     ('settings', 'setting', '*', '*'),
+    ('tickets', '*', '*', '*'),
     ('ops', 'task', 'view', 'taskmonitor'),
     ('terminal', 'terminal', '*', '*'),
     ('terminal', 'commandstorage', '*', '*'),
     ('terminal', 'replaystorage', '*', '*'),
     ('terminal', 'status', '*', '*'),
     ('terminal', 'task', '*', '*'),
+    ('terminal', 'endpoint', '*', '*'),
+    ('terminal', 'endpointrule', '*', '*'),
     ('authentication', '*', '*', '*'),
+    ('tickets', '*', '*', '*'),
+    ('orgs', 'organization', 'view', 'rootorg'),
 )
 
 only_org_permissions = (

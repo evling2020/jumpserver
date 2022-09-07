@@ -5,8 +5,8 @@ from assets.models import AuthBook
 from orgs.mixins.serializers import BulkOrgResourceModelSerializer
 
 from .base import AuthSerializerMixin
-from .utils import validate_password_contains_left_double_curly_bracket
 from common.utils.encode import ssh_pubkey_gen
+from common.drf.serializers import SecretReadableMixin
 
 
 class AccountSerializer(AuthSerializerMixin, BulkOrgResourceModelSerializer):
@@ -31,10 +31,6 @@ class AccountSerializer(AuthSerializerMixin, BulkOrgResourceModelSerializer):
         fields = fields_small + fields_fk
         extra_kwargs = {
             'username': {'required': True},
-            'password': {
-                'write_only': True,
-                "validators": [validate_password_contains_left_double_curly_bracket]
-            },
             'private_key': {'write_only': True},
             'public_key': {'write_only': True},
             'systemuser_display': {'label': _('System user display')}
@@ -57,7 +53,15 @@ class AccountSerializer(AuthSerializerMixin, BulkOrgResourceModelSerializer):
         return attrs
 
     def get_protocols(self, v):
-        return v.protocols.replace(' ', ', ')
+        """ protocols 是 queryset 中返回的，Post 创建成功后返回序列化时没有这个字段 """
+        if hasattr(v, 'protocols'):
+            protocols = v.protocols
+        elif hasattr(v, 'asset') and v.asset:
+            protocols = v.asset.protocols
+        else:
+            protocols = ''
+        protocols = protocols.replace(' ', ', ')
+        return protocols
 
     @classmethod
     def setup_eager_loading(cls, queryset):
@@ -70,7 +74,7 @@ class AccountSerializer(AuthSerializerMixin, BulkOrgResourceModelSerializer):
         return super().to_representation(instance)
 
 
-class AccountSecretSerializer(AccountSerializer):
+class AccountSecretSerializer(SecretReadableMixin, AccountSerializer):
     class Meta(AccountSerializer.Meta):
         fields_backup = [
             'hostname', 'ip', 'platform', 'protocols', 'username', 'password',

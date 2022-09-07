@@ -9,6 +9,7 @@ from django.db.models.signals import post_save
 
 from authentication.backends.oidc.signals import openid_create_or_update_user
 from authentication.backends.saml2.signals import saml2_create_or_update_user
+from authentication.backends.oauth2.signals import oauth2_create_or_update_user
 from common.utils import get_logger
 from common.decorator import on_transaction_commit
 from .signals import post_user_create
@@ -26,16 +27,18 @@ def user_authenticated_handle(user, created, source, attrs=None, **kwargs):
         user.source = source
         user.save()
 
-    if not created and settings.AUTH_SAML2_ALWAYS_UPDATE_USER:
+    if not attrs:
+        return
+
+    always_update = getattr(settings, 'AUTH_%s_ALWAYS_UPDATE_USER' % source.upper(), False)
+    if not created and always_update:
         attr_whitelist = ('user', 'username', 'email', 'phone', 'comment')
         logger.debug(
-            "Receive saml2 user updated signal: {}, "
+            "Receive {} user updated signal: {}, "
             "Update user info: {},"
             "(Update only properties in the whitelist. [{}])"
-            "".format(user, str(attrs), ','.join(attr_whitelist))
+            "".format(source, user, str(attrs), ','.join(attr_whitelist))
         )
-        if not attrs:
-            return
         for key, value in attrs.items():
             if key in attr_whitelist and value:
                 setattr(user, key, value)
@@ -60,15 +63,26 @@ def save_passwd_change(sender, instance: User, **kwargs):
         )
 
 
+def update_role_superuser_if_need(user):
+    if not user._update_superuser:
+        return
+    value = user._is_superuser
+    if value:
+        user.system_roles.add_role_system_admin()
+    else:
+        user.system_roles.remove_role_system_admin()
+
+
 @receiver(post_save, sender=User)
 @on_transaction_commit
 def on_user_create_set_default_system_role(sender, instance, created, **kwargs):
+    update_role_superuser_if_need(instance)
     if not created:
         return
     has_system_role = instance.system_roles.all().exists()
     if not has_system_role:
         logger.debug("Receive user create signal, set default role")
-        instance.set_default_system_role()
+        instance.system_roles.add_role_system_user()
 
 
 @receiver(post_user_create)
@@ -89,6 +103,12 @@ def on_cas_user_authenticated(sender, user, created, **kwargs):
 @receiver(saml2_create_or_update_user)
 def on_saml2_create_or_update_user(sender, user, created, attrs, **kwargs):
     source = user.Source.saml2.value
+    user_authenticated_handle(user, created, source, attrs, **kwargs)
+
+
+@receiver(oauth2_create_or_update_user)
+def on_oauth2_create_or_update_user(sender, user, created, attrs, **kwargs):
+    source = user.Source.oauth2.value
     user_authenticated_handle(user, created, source, attrs, **kwargs)
 
 

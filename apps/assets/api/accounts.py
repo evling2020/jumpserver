@@ -1,4 +1,4 @@
-from django.db.models import F, Q
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django_filters import rest_framework as filters
 from rest_framework.decorators import action
@@ -8,12 +8,14 @@ from rest_framework.generics import CreateAPIView
 from orgs.mixins.api import OrgBulkModelViewSet
 from rbac.permissions import RBACPermission
 from common.drf.filters import BaseFilterSet
-from common.permissions import NeedMFAVerify
+from common.mixins import RecordViewLogMixin
+from common.permissions import UserConfirmation
+from authentication.const import ConfirmType
 from ..tasks.account_connectivity import test_accounts_connectivity_manual
 from ..models import AuthBook, Node
 from .. import serializers
 
-__all__ = ['AccountViewSet', 'AccountSecretsViewSet', 'AccountTaskCreateAPI']
+__all__ = ['AccountFilterSet', 'AccountViewSet', 'AccountSecretsViewSet', 'AccountTaskCreateAPI']
 
 
 class AccountFilterSet(BaseFilterSet):
@@ -79,7 +81,7 @@ class AccountViewSet(OrgBulkModelViewSet):
         return Response(data={'task': task.id})
 
 
-class AccountSecretsViewSet(AccountViewSet):
+class AccountSecretsViewSet(RecordViewLogMixin, AccountViewSet):
     """
     因为可能要导出所有账号，所以单独建立了一个 viewset
     """
@@ -87,7 +89,7 @@ class AccountSecretsViewSet(AccountViewSet):
         'default': serializers.AccountSecretSerializer
     }
     http_method_names = ['get']
-    permission_classes = [RBACPermission, NeedMFAVerify]
+    permission_classes = [RBACPermission, UserConfirmation.require(ConfirmType.MFA)]
     rbac_perms = {
         'list': 'assets.view_assetaccountsecret',
         'retrieve': 'assets.view_assetaccountsecret',

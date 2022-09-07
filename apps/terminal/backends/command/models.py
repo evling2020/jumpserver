@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 #
+from datetime import datetime
 import uuid
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
@@ -29,6 +30,10 @@ class AbstractSessionCommand(OrgModelMixin):
         abstract = True
 
     @lazyproperty
+    def timestamp_display(self):
+        return datetime.fromtimestamp(self.timestamp)
+
+    @lazyproperty
     def remote_addr(self):
         from terminal.models import Session
         session = Session.objects.filter(id=self.session).first()
@@ -41,21 +46,6 @@ class AbstractSessionCommand(OrgModelMixin):
     def get_risk_level_str(cls, risk_level):
         risk_mapper = dict(cls.RISK_LEVEL_CHOICES)
         return risk_mapper.get(risk_level)
-
-    @classmethod
-    def from_dict(cls, d):
-        self = cls()
-        for k, v in d.items():
-            setattr(self, k, v)
-        return self
-
-    @classmethod
-    def from_multi_dict(cls, l):
-        commands = []
-        for d in l:
-            command = cls.from_dict(d)
-            commands.append(command)
-        return commands
 
     def to_dict(self):
         d = {}

@@ -1,8 +1,8 @@
 import json
 import threading
-
 import redis
-from django.conf import settings
+
+from django.core.cache import cache
 
 from common.db.utils import safe_db_connection
 from common.utils import get_logger
@@ -10,14 +10,10 @@ from common.utils import get_logger
 logger = get_logger(__name__)
 
 
-def get_redis_client(db):
-    rc = redis.StrictRedis(
-        host=settings.REDIS_HOST,
-        port=settings.REDIS_PORT,
-        password=settings.REDIS_PASSWORD,
-        db=db
-    )
-    return rc
+def get_redis_client(db=0):
+    client = cache.client.get_client()
+    assert isinstance(client, redis.Redis)
+    return client
 
 
 class Subscription:
@@ -99,5 +95,3 @@ class RedisPubSub:
         data_json = json.dumps(data)
         self.redis.publish(self.ch, data_json)
         return True
-
-

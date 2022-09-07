@@ -125,8 +125,10 @@ function csrfSafeMethod(method) {
 }
 
 function setAjaxCSRFToken() {
-    var csrftoken = getCookie('csrftoken');
-    var sessionid = getCookie('sessionid');
+    let prefix = getCookie('SESSION_COOKIE_NAME_PREFIX');
+    if (!prefix || [`""`, `''`].indexOf(prefix) > -1) { prefix = ''; }
+    var csrftoken = getCookie(`${prefix}csrftoken`);
+    var sessionid = getCookie(`${prefix}sessionid`);
 
     $.ajaxSetup({
         beforeSend: function (xhr, settings) {
@@ -268,11 +270,13 @@ function requestApi(props) {
     if (typeof(dataBody) === "object") {
         dataBody = JSON.stringify(dataBody)
     }
+    var beforeSend = props.beforeSend || function (request) {}
 
     $.ajax({
         url: props.url,
         type: props.method || "PATCH",
         data: dataBody,
+        beforeSend: beforeSend,
         contentType: props.content_type || "application/json; charset=utf-8",
         dataType: props.data_type || "json"
     }).done(function (data, textStatue, jqXHR) {
@@ -1499,3 +1503,84 @@ function getStatusIcon(status, mapping, title) {
     }
     return icon;
 }
+
+
+function fillKey(key) {
+    const KeyLength = 16
+    if (key.length > KeyLength) {
+        key = key.slice(0, KeyLength)
+    }
+    const filledKey = Buffer.alloc(KeyLength)
+    const keys = Buffer.from(key)
+    for (let i = 0; i < keys.length; i++) {
+        filledKey[i] = keys[i]
+    }
+    return filledKey
+}
+
+function aesEncrypt(text, originKey) {
+    const key = CryptoJS.enc.Utf8.parse(fillKey(originKey));
+    return CryptoJS.AES.encrypt(text, key, {
+        mode: CryptoJS.mode.ECB,
+        padding: CryptoJS.pad.ZeroPadding
+    }).toString();
+}
+
+function rsaEncrypt(text, pubKey) {
+    if (!text) {
+        return text
+    }
+    const jsEncrypt = new JSEncrypt();
+    jsEncrypt.setPublicKey(pubKey);
+    return jsEncrypt.encrypt(text);
+}
+
+function rsaDecrypt(cipher, pkey) {
+    const jsEncrypt = new JSEncrypt();
+    jsEncrypt.setPrivateKey(pkey);
+    return jsEncrypt.decrypt(cipher)
+}
+
+
+window.rsaEncrypt = rsaEncrypt
+window.rsaDecrypt = rsaDecrypt
+
+function encryptPassword(password) {
+    if (!password) {
+        return ''
+    }
+    const aesKey = (Math.random() + 1).toString(36).substring(2)
+    // public key 是 base64 存储的
+    const rsaPublicKeyText = getCookie('jms_public_key')
+        .replaceAll('"', '')
+    const rsaPublicKey = atob(rsaPublicKeyText)
+    const keyCipher = rsaEncrypt(aesKey, rsaPublicKey)
+    const passwordCipher = aesEncrypt(password, aesKey)
+    return `${keyCipher}:${passwordCipher}`
+}
+
+
+function randomString(length) {
+    const characters ='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    const charactersLength = characters.length;
+    for ( let i = 0; i < length; i++ ) {
+        result += characters.charAt(Math.floor(Math.random() * charactersLength));
+    }
+
+    return result;
+}
+
+function testEncrypt() {
+    const radio = []
+    const len2 = []
+    for (let i=1;i<4096;i++) {
+        const password = randomString(i)
+        const cipher = encryptPassword(password)
+        len2.push([password.length, cipher.length])
+        radio.push(cipher.length/password.length)
+    }
+    return radio
+}
+
+window.encryptPassword = encryptPassword

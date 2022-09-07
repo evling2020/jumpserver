@@ -41,7 +41,7 @@ class AppType(models.TextChoices):
     def category_types_mapper(cls):
         return {
             AppCategory.db: [
-                cls.mysql, cls.oracle, cls.pgsql, cls.mariadb,
+                cls.mysql, cls.mariadb, cls.oracle, cls.pgsql,
                 cls.sqlserver, cls.redis, cls.mongodb
             ],
             AppCategory.remote_app: [
@@ -83,3 +83,9 @@ class AppType(models.TextChoices):
         if AppCategory.is_xpack(category):
             return True
         return tp in ['oracle', 'postgresql', 'sqlserver']
+
+
+class OracleVersion(models.TextChoices):
+    version_11g = '11g', '11g'
+    version_12c = '12c', '12c'
+    version_other = 'other', _('Other')

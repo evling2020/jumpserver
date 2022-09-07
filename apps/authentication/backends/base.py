@@ -1,10 +1,11 @@
-from django.contrib.auth.backends import BaseBackend
 from django.contrib.auth.backends import ModelBackend
+from django.contrib.auth import get_user_model
 
 from users.models import User
 from common.utils import get_logger
 
 
+UserModel = get_user_model()
 logger = get_logger(__file__)
 
 
@@ -48,7 +49,7 @@ class JMSBaseAuthBackend:
         if not allow:
             info = 'User {} skip authentication backend {}, because it not in {}'
             info = info.format(username, backend_name, ','.join(allowed_backend_names))
-            logger.debug(info)
+            logger.info(info)
         return allow
 
 

@@ -1,11 +1,13 @@
 from django.utils.translation import gettext_lazy as _
 from django.db import models
 from django.db.models import Q
+from django.conf import settings
+from django.core.exceptions import ValidationError
 from rest_framework.serializers import ValidationError
 
 from common.db.models import JMSModel
 from common.utils import lazyproperty
-from orgs.utils import current_org
+from orgs.utils import current_org, tmp_to_root_org
 from .role import Role
 from ..const import Scope
 
@@ -67,6 +69,7 @@ class RoleBinding(JMSModel):
 
     def save(self, *args, **kwargs):
         self.scope = self.role.scope
+        self.clean()
         return super().save(*args, **kwargs)
 
     @classmethod
@@ -94,6 +97,46 @@ class RoleBinding(JMSModel):
     @lazyproperty
     def role_display(self):
         return self.role.display_name
+
+    def is_scope_org(self):
+        return self.scope == Scope.org
+
+    @classmethod
+    def get_user_has_the_perm_orgs(cls, perm, user):
+        from orgs.models import Organization
+
+        roles = Role.get_roles_by_perm(perm)
+        with tmp_to_root_org():
+            bindings = list(cls.objects.root_all().filter(role__in=roles, user=user))
+
+        system_bindings = [b for b in bindings if b.scope == Role.Scope.system.value]
+        # 工作台仅限于自己加入的组织
+        if perm == 'rbac.view_workbench':
+            all_orgs = user.orgs.all().distinct()
+        else:
+            all_orgs = Organization.objects.all()
+
+        if not settings.XPACK_ENABLED:
+            all_orgs = all_orgs.filter(id=Organization.DEFAULT_ID)
+
+        # 有系统级别的绑定，就代表在所有组织有这个权限
+        if system_bindings:
+            orgs = all_orgs
+        else:
+            org_ids = [b.org.id for b in bindings if b.org]
+            orgs = all_orgs.filter(id__in=org_ids)
+
+        workbench_perm = 'rbac.view_workbench'
+        # 全局组织
+        if orgs and perm != workbench_perm and user.has_perm('orgs.view_rootorg'):
+            root_org = Organization.root()
+            orgs = [root_org, *list(orgs)]
+        elif orgs and perm == workbench_perm and user.has_perm('orgs.view_alljoinedorg'):
+            # Todo: 先复用组织
+            root_org = Organization.root()
+            root_org.name = _("All organizations")
+            orgs = [root_org, *list(orgs)]
+        return orgs
 
 
 class OrgRoleBindingManager(RoleBindingManager):
@@ -147,3 +190,12 @@ class SystemRoleBinding(RoleBinding):
     def save(self, *args, **kwargs):
         self.scope = Scope.system
         return super().save(*args, **kwargs)
+
+    def clean(self):
+        kwargs = dict(role=self.role, user=self.user, scope=self.scope)
+        exists = self.__class__.objects.filter(**kwargs).exists()
+        if exists:
+            msg = "Duplicate for key 'role_user' of system role binding, {}_{}".format(
+                self.role.id, self.user.id
+            )
+            raise ValidationError(msg)
